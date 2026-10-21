@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="TeleSalon">
+<meta name="theme-color" content="#111318">
+<title>TeleSalon</title>
+<style>
+  :root {
+    --bg: #111318; --panel: #1b1e26; --btn: #262a35; --btn-active: #3a4050;
+    --text: #eef0f5; --muted: #8a90a0; --accent: #4f7cff; --danger: #e5484d; --ok: #30a46c;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.4 -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+    max-width: 440px; margin-inline: auto; user-select: none;
+  }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  h1 { font-size: 20px; margin: 0; }
+  .status { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--danger); }
+  .dot.on { background: var(--ok); }
+  .dot.wait { background: #f5a623; }
+  section { background: var(--panel); border-radius: 18px; padding: 14px; margin-bottom: 14px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 10px; }
+  .row { display: flex; gap: 10px; }
+  .grid { display: grid; gap: 10px; }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  .g2 { grid-template-columns: repeat(2, 1fr); }
+  button {
+    background: var(--btn); color: var(--text); border: 0; border-radius: 14px;
+    font: inherit; font-weight: 600; padding: 16px 8px; min-height: 56px; cursor: pointer;
+    transition: transform .05s, background .1s;
+  }
+  button:active { background: var(--btn-active); transform: scale(.96); }
+  button.power { background: var(--danger); }
+  button.accent { background: var(--accent); }
+  .big { font-size: 22px; }
+  .dpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .dpad .ok { border-radius: 50%; aspect-ratio: 1; background: var(--accent); }
+  input {
+    width: 100%; background: var(--btn); color: var(--text); border: 1px solid #333949;
+    border-radius: 12px; padding: 12px; font: inherit; margin-bottom: 10px; user-select: text;
+  }
+  label { font-size: 14px; color: var(--muted); display: block; margin-bottom: 4px; }
+  .hint { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+  .hint a { color: var(--accent); }
+  .hidden { display: none; }
+  #toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+    background: #000c; padding: 10px 16px; border-radius: 12px; font-size: 14px;
+    opacity: 0; transition: opacity .2s; pointer-events: none; max-width: 90vw; text-align: center;
+  }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📺 TeleSalon</h1>
+  <div class="status"><span class="dot" id="dot"></span><span id="statusText">Déconnecté</span></div>
+</header>
+
+<!-- Réglages : adresse IP de la télé -->
+<section id="setup">
+  <h2>Connexion à la télé</h2>
+  <label for="ip">Adresse IP de la télé</label>
+  <input id="ip" inputmode="decimal" placeholder="ex : 192.168.1.42" autocomplete="off">
+  <div class="row">
+    <button class="accent" style="flex:1" id="connectBtn">Se connecter</button>
+    <button style="flex:1" id="certBtn">1ʳᵉ fois : autoriser</button>
+  </div>
+  <p class="hint">
+    IP : sur la télé, <b>Paramètres → Général → Réseau → État du réseau</b>.<br>
+    Première fois : appuie sur « autoriser », accepte l'avertissement de sécurité du navigateur,
+    reviens ici puis « Se connecter » et accepte la demande qui s'affiche sur la télé.
+  </p>
+</section>
+
+<section>
+  <div class="grid g3">
+    <button class="power big" data-key="KEY_POWER">⏻</button>
+    <button data-key="KEY_SOURCE">Source</button>
+    <button data-key="KEY_HOME">🏠</button>
+  </div>
+</section>
+
+<section>
+  <h2>Son & chaînes</h2>
+  <div class="grid g3">
+    <button class="big" data-key="KEY_VOLUP" data-repeat>🔊 +</button>
+    <button class="big" data-key="KEY_MUTE">🔇</button>
+    <button class="big" data-key="KEY_CHUP">CH ▲</button>
+    <button class="big" data-key="KEY_VOLDOWN" data-repeat>🔉 −</button>
+    <button data-key="KEY_INFO">Info</button>
+    <button class="big" data-key="KEY_CHDOWN">CH ▼</button>
+  </div>
+</section>
+
+<section>
+  <h2>Navigation</h2>
+  <div class="dpad">
+    <span></span><button class="big" data-key="KEY_UP" data-repeat>▲</button><span></span>
+    <button class="big" data-key="KEY_LEFT" data-repeat>◀</button>
+    <button class="ok" data-key="KEY_ENTER">OK</button>
+    <button class="big" data-key="KEY_RIGHT" data-repeat>▶</button>
+    <button data-key="KEY_RETURN">↩ Retour</button>
+    <button class="big" data-key="KEY_DOWN" data-repeat>▼</button>
+    <button data-key="KEY_MENU">Menu</button>
+  </div>
+</section>
+
+<section>
+  <h2>Lecture</h2>
+  <div class="grid g3">
+    <button class="big" data-key="KEY_REWIND">⏪</button>
+    <button class="big" data-key="KEY_PLAY">▶</button>
+    <button class="big" data-key="KEY_FF">⏩</button>
+    <button class="big" data-key="KEY_STOP">⏹</button>
+    <button class="big" data-key="KEY_PAUSE">⏸</button>
+    <button data-toggle="numpad">123</button>
+  </div>
+  <div class="grid g3 hidden" id="numpad" style="margin-top:10px">
+    <button data-key="KEY_1">1</button><button data-key="KEY_2">2</button><button data-key="KEY_3">3</button>
+    <button data-key="KEY_4">4</button><button data-key="KEY_5">5</button><button data-key="KEY_6">6</button>
+    <button data-key="KEY_7">7</button><button data-key="KEY_8">8</button><button data-key="KEY_9">9</button>
+    <span></span><button data-key="KEY_0">0</button><span></span>
+  </div>
+</section>
+
+<section>
+  <h2>Applis</h2>
+  <div class="grid g2">
+    <button data-app="11101200001">Netflix</button>
+    <button data-app="111299001912">YouTube</button>
+    <button data-app="3201910019365">Prime Video</button>
+    <button data-app="3201901017640">Disney+</button>
+    <button data-app="3201606009684">Spotify</button>
+    <button data-app="3201512006785">Twitch</button>
+  </div>
+</section>
+
+<div id="toast"></div>
+
+<script>
+  // Télécommande Samsung (Tizen, 2016+) via l'API WebSocket locale de la télé.
+  const APP_NAME = "TeleSalon";
+  const $ = id => document.getElementById(id);
+  const store = {
+    get: k => { try { return localStorage.getItem(k); } catch { return null; } },
+    set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+  };
+
+  let ws = null;
+
+  function toast(msg) {
+    const t = $("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(() => t.classList.remove("show"), 2500);
+  }
+
+  function setStatus(state, text) {
+    $("dot").className = "dot " + (state === "on" ? "on" : state === "wait" ? "wait" : "");
+    $("statusText").textContent = text;
+    $("setup").classList.toggle("hidden", state === "on");
+  }
+
+  function connect() {
+    const ip = $("ip").value.trim();
+    if (!ip) return toast("Entre l'adresse IP de la télé");
+    store.set("tv_ip", ip);
+    if (ws) ws.close();
+
+    const token = store.get("tv_token_" + ip);
+    let url = `wss://${ip}:8002/api/v2/channels/samsung.remote.control?name=${btoa(APP_NAME)}`;
+    if (token) url += `&token=${token}`;
+
+    setStatus("wait", token ? "Connexion…" : "Accepte sur la télé…");
+    ws = new WebSocket(url);
+
+    ws.onmessage = e => {
+      let msg;
+      try { msg = JSON.parse(e.data); } catch { return; }
+      if (msg.event === "ms.channel.connect") {
+        if (msg.data && msg.data.token) store.set("tv_token_" + ip, msg.data.token);
+        setStatus("on", "Connecté");
+        toast("Connecté à la télé ✅");
+      } else if (msg.event === "ms.channel.unauthorized") {
+        setStatus("off", "Refusé par la télé");
+        toast("La télé a refusé la connexion");
+      }
+    };
+    ws.onerror = () => toast("Impossible de joindre la télé. Fais d'abord « autoriser ».");
+    ws.onclose = () => { setStatus("off", "Déconnecté"); ws = null; };
+  }
+
+  function send(payload) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      toast("Pas connecté");
+      return false;
+    }
+    ws.send(JSON.stringify(payload));
+    if (navigator.vibrate) navigator.vibrate(15);
+    return true;
+  }
+
+  function sendKey(key) {
+    send({
+      method: "ms.remote.control",
+      params: { Cmd: "Click", DataOfCmd: key, Option: "false", TypeOfRemote: "SendRemoteKey" },
+    });
+  }
+
+  function launchApp(appId) {
+    send({
+      method: "ms.channel.emit",
+      params: { event: "ed.apps.launch", to: "host", data: { appId, action_type: "DEEP_LINK" } },
+    });
+  }
+
+  // Boutons de touches (avec répétition en appui long pour volume et flèches)
+  document.querySelectorAll("[data-key]").forEach(btn => {
+    const key = btn.dataset.key;
+    if (!btn.hasAttribute("data-repeat")) {
+      btn.addEventListener("click", () => sendKey(key));
+      return;
+    }
+    let delay, interval;
+    const stop = () => { clearTimeout(delay); clearInterval(interval); };
+    btn.addEventListener("pointerdown", e => {
+      e.preventDefault();
+      sendKey(key);
+      delay = setTimeout(() => { interval = setInterval(() => sendKey(key), 150); }, 400);
+    });
+    ["pointerup", "pointerleave", "pointercancel"].forEach(ev => btn.addEventListener(ev, stop));
+  });
+
+  document.querySelectorAll("[data-app]").forEach(btn =>
+    btn.addEventListener("click", () => launchApp(btn.dataset.app)));
+
+  document.querySelectorAll("[data-toggle]").forEach(btn =>
+    btn.addEventListener("click", () => $(btn.dataset.toggle).classList.toggle("hidden")));
+
+  // La télé utilise un certificat auto-signé : il faut l'accepter une fois dans le navigateur.
+  $("certBtn").addEventListener("click", () => {
+    const ip = $("ip").value.trim();
+    if (!ip) return toast("Entre l'adresse IP de la télé");
+    store.set("tv_ip", ip);
+    window.open(`https://${ip}:8002/api/v2/`, "_blank");
+  });
+
+  $("connectBtn").addEventListener("click", connect);
+
+  const savedIp = store.get("tv_ip");
+  if (savedIp) {
+    $("ip").value = savedIp;
+    connect();
+  }
+</script>
+</body>
+</html>
